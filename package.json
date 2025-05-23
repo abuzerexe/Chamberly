@@ -9,6 +9,7 @@
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
+    "esbuild": "^0.25.4",
     "prettier": "^3.5.3",
     "turbo": "^2.5.3",
     "typescript": "5.8.2"
@@ -17,9 +18,9 @@
   "engines": {
     "node": ">=18"
   },
-  "author": "Muhammad Abuzer Zia",
+  "author": "abuzerexe",
   "homepage": "https://github.com/abuzerexe/Chamberly#readme",
-    "repository": {
+  "repository": {
     "type": "git",
     "url": "git+https://github.com/abuzerexe/Chamberly.git"
   }

@@ -17,7 +17,7 @@ type User = {
 
 const rooms = new Map<string,Room>() 
 
-const users = new Map<WebSocket,User>() // socket, name of the user
+const users = new Map<WebSocket,User>() // socket, name,id of the user
 
 
 
@@ -39,8 +39,16 @@ wss.on("connection",(ws)=>{
             
         }
         else if(type == "broadcast"){
-            const message = broadcastToRoom(parsedMessage,ws)
+             broadcastToRoom(parsedMessage,ws)
         }
+        else if(type == "leave-room"){
+            const message = leaveRoom(payload,ws)
+            ws.send(JSON.stringify(message));
+        }
+    })
+
+    ws.on("close",()=>{
+      handleDisconnet(ws);
     })
 })
 
@@ -160,7 +168,7 @@ function joinRoom( payload, ws: WebSocket){
 
 
           const broadcastMessage = {
-            type: "user-join",
+            type: "system",
             payload: {
               roomId,
               message : `${userName} has joined the room.`
@@ -213,7 +221,7 @@ function joinRoom( payload, ws: WebSocket){
 
   // chat message
 
-  {"type":"chat-broadcast",
+  {"type":"message",
   "payload":{
   "message":"hi",
   "senderId":"I0uwDAV",
@@ -223,13 +231,12 @@ function joinRoom( payload, ws: WebSocket){
 
   // announcing user
 
-  {"type":"chat-broadcast",
+  {"type":"system",
   "payload":{
-  "message":"hi",
-  "senderId":"I0uwDAV",
-  "senderName":"Random2",
-  "timestamp":"2025-05-23T22:44:19.609Z"
-  }}
+  "message":"Random1 has joined the room.",
+  "senderId":"b9nqMPA",
+  "senderName":"Random1",
+  "timestamp":"2025-05-23T22:40:55.515Z"}}
 */
 
 function broadcastToRoom(parsedMsg, ws: WebSocket){
@@ -250,21 +257,21 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
     const sender = users.get(ws)
     let message = {}
 
-    if(parsedMsg.type == "user-join"){
+    if(parsedMsg.type == "system"){
       message = {
-        type: "announce-user",
+        type: "system",
         payload: {
           message : parsedMsg.payload.message,
           senderId : sender.userId,
+          userCount: rooms.get(roomId).participants.size,
           senderName : sender.userName,
           timestamp: new Date().toISOString()
 
       }
     }
     }else{
-      console.log("chat reached")
       message = {
-        type: "chat-broadcast",
+        type: "message",
         payload: {
           message : parsedMsg.payload.message,
           senderId : sender.userId,
@@ -278,13 +285,112 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
     const participants = rooms.get(roomId).participants
 
     participants.forEach((participant)=>{
-        if(participant != ws){
             participant.send(JSON.stringify(message))
-        }
+        
     })
 
     
 }
+/*
+  CLIENT
+  {
+  "type": "leave-room",
+  "payload": {
+    "roomId": "552721"
+  }
+}
+
+SERVER
+
+
+
+*/
+function leaveRoom(payload, ws: WebSocket) {
+  const { roomId } = payload;
+  const user = users.get(ws);
+
+  if (!user || !rooms.has(roomId)) {
+    return {
+      type: "error",
+      payload: {
+        error: "Invalid user or room ID.",
+        context: "leave-room"
+      }
+    };
+  }
+
+  const room = rooms.get(roomId);
+  room.participants.delete(ws);
+
+  
+  const leaveNotice = {
+    type: "user-left",
+    payload: {
+      roomId,
+      senderId: user.userId,
+      senderName: user.userName,
+      userCount : room.participants.size,
+      message: `${user.userName} has left the room.`,
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  room.participants.forEach(participant => {
+    participant.send(JSON.stringify(leaveNotice));
+  });
+
+  // Cleanup if empty
+  if (room.participants.size === 0) {
+    rooms.delete(roomId);
+  }
+
+  return {
+    type: "room-left",
+    payload: {
+      message: `You left the room "${room.roomName}" successfully.`,
+      roomId,
+      status: "success"
+    }
+  };
+}
+
+function handleDisconnet(ws : WebSocket){
+
+  const user = users.get(ws)
+
+  if(!user){
+    return
+  }
+
+  users.delete(ws);
+
+  rooms.forEach((room,roomId)=>{
+    if(room.participants.has(ws)){
+      room.participants.delete(ws)
+    }
+
+    const disconnectMessage = {
+        type: "user-left",
+        payload: {
+          roomId,
+          senderId: user.userId,
+          senderName: user.userName,
+          message: `${user.userName} has disconnected.`,
+          timestamp: new Date().toISOString()
+        }
+      };
+      room.participants.forEach((user)=>{
+        user.send(JSON.stringify(disconnectMessage))
+      })
+
+      if(room.participants.size === 0){
+        rooms.delete(roomId)
+      }
+  })
+
+
+}
+
 
 
 function generateRoomId(): string{

@@ -2,15 +2,18 @@ import { WebSocketServer, WebSocket } from "ws";
 import { nanoid } from 'nanoid';
 
 
-const wss = new WebSocketServer({port: 8080});
+const wss = new WebSocketServer({port: 8080},()=>{
+  console.log("Server listening on port 8080")
+});
 
-type Room = {
+interface Room {
   roomName: string;  
   createdBy: string;
   participants: Set<WebSocket>;
+  lastActive: number
 };
 
-type User = {
+interface User {
     userId : string; 
     userName : string
 }
@@ -74,7 +77,6 @@ wss.on("connection",(ws)=>{
       "roomId" : "23232",
       "roomName" : "General Chat",
       "userCount" : 1,
-      "status": "success",
       "message": "Room "General Chat" created successfully".
     }
   }
@@ -87,11 +89,11 @@ try{
     const roomName = payload.roomName
     const createdBy = payload.createdBy
 
-    rooms.set(roomId,{roomName, createdBy, participants: new Set([ws])})
+    rooms.set(roomId,{roomName, createdBy, participants: new Set([ws]),lastActive:Date.now()})
 
     const userId = generateUserId()
     users.set(ws,{userId,userName: createdBy})
-
+     console.log("creating room for user with id: "+ userId + " and name: " + createdBy)
     const message = {
     type: "room-created",
     payload: {
@@ -99,7 +101,6 @@ try{
       roomId,
       roomName,
       userCount : 1,
-      status: "success",
       message: `Room "${roomName}" created successfully.`
     }
   }
@@ -145,7 +146,6 @@ try{
       "roomName" : "General Chat",
       "createdBy": "Abuzer",
       "userCount": 2,
-      "status": "success",
       "message": `Room "General Chat" joined successfully.`
       }
 
@@ -164,6 +164,7 @@ function joinRoom( payload, ws: WebSocket){
         users.set(ws,{userId,userName})
         const room = rooms.get(roomId)
         room.participants.add(ws)
+        room.lastActive = Date.now()
         const roomName = room.roomName
 
 
@@ -283,6 +284,7 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
     }
 
     const participants = rooms.get(roomId).participants
+    rooms.get(roomId).lastActive = Date.now()
 
     participants.forEach((participant)=>{
             participant.send(JSON.stringify(message))
@@ -321,10 +323,11 @@ function leaveRoom(payload, ws: WebSocket) {
 
   const room = rooms.get(roomId);
   room.participants.delete(ws);
+  room.lastActive = Date.now()
 
   
   const leaveNotice = {
-    type: "user-left",
+    type: "system",
     payload: {
       roomId,
       senderId: user.userId,
@@ -367,10 +370,11 @@ function handleDisconnet(ws : WebSocket){
   rooms.forEach((room,roomId)=>{
     if(room.participants.has(ws)){
       room.participants.delete(ws)
+      room.lastActive = Date.now()
     }
 
     const disconnectMessage = {
-        type: "user-left",
+        type: "system",
         payload: {
           roomId,
           senderId: user.userId,
@@ -391,7 +395,15 @@ function handleDisconnet(ws : WebSocket){
 
 }
 
-
+setInterval(() => {
+  const now = Date.now();
+  rooms.forEach((room, roomCode) => {
+    if (room.participants.size === 0 && now - room.lastActive > 3600000) {
+      console.log(`Cleaning up inactive room: ${roomCode}`);
+      rooms.delete(roomCode);
+    }
+  });
+}, 3600000);
 
 function generateRoomId(): string{
     let id : string;

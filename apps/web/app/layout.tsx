@@ -1,15 +1,14 @@
+import './globals.css'
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import "./globals.css";
+import { ThemeProvider } from "@/components/ui/theme-provider"
+import { JetBrains_Mono } from "next/font/google"
+import { Toaster } from "@/components/ui/sonner"
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-});
+const jetbrainsMono = JetBrains_Mono({ 
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+})
+
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -22,9 +21,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${jetbrainsMono.variable} font-mono`}>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+
       </body>
     </html>
   );

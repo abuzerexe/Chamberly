@@ -1,0 +1,142 @@
+"use client"
+
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
+import { Dispatch, ReactElement, SetStateAction, useState } from "react"
+
+const FormSchema = z.object({
+  name: z.string().min(1, { message: "Name is required." }),
+  roomName: z
+    .string()
+    .min(3, { message: "Invalid Room Name. Atleast 3 characters." })
+    .max(20, { message: "Invalid Room Name. Atmost 20 characters." }),
+})
+
+
+type CreateRoomProps = {
+  socket :  React.RefObject<WebSocket | null>,
+  // isLoading : boolean,
+  // setIsLoading: Dispatch<SetStateAction<boolean>>
+}
+
+export default function CreateRoom({socket}: CreateRoomProps) {
+
+  const [isLoading, setIsLoading] = useState(false)
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      name: "",
+      roomName: "",
+    },
+  })
+
+  function onSubmit(data: z.infer<typeof FormSchema>) {
+    const createRoomMessage = {
+      type : "create-room",
+      payload : {
+        roomName : data.roomName,
+        createdBy : data.name
+      }
+    }
+    if (socket.current) {
+      socket.current.send(JSON.stringify(createRoomMessage))
+      setIsLoading(true)
+      //route to room page
+      // setisloading false
+    } else {
+      toast.error("Connection not established. Kindly Refresh the page.")
+    }
+    
+  }
+
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="text-lg py-6 font-bold cursor-pointer">Create Room</Button>
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">Create Room</DialogTitle>
+          <DialogDescription>
+            Enter details below and click Create when you're ready.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            
+            className="grid gap-4 py-4"
+            id="create-room-form"
+          >
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <FormLabel className="text-right text-lg">Name</FormLabel>
+                  <FormControl className="col-span-3">
+                    <Input placeholder="Enter your name" {...field} />
+                  </FormControl>
+                  <FormMessage className="col-span-4 ml-24" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="roomName"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4">
+                  <FormLabel className="text-right text-md">Room Name</FormLabel>
+                  <FormControl className="col-span-3">
+                    <Input placeholder="Enter Room Name" {...field} />
+                  </FormControl>
+                  <FormMessage className="col-span-4 ml-24" />
+                </FormItem>
+              )}
+            />
+          </form>
+        </Form>
+
+        <DialogFooter>
+          {/* submit button linked to the form by form="join-room-form" */}
+          <Button
+          disabled={isLoading && socket.current?.readyState === WebSocket.OPEN}
+            type="submit"
+            form="create-room-form"
+            className="px-8 text-lg font-bold cursor-pointer"
+            size="lg"
+          >
+            {isLoading?"Creating...":"Create Room"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { Dispatch, SetStateAction, useState } from "react"
+import { Dispatch, SetStateAction } from "react"
 
 const FormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
@@ -122,7 +122,6 @@ export default function JoinRoom({socket,isLoading,setIsLoading}: joinRoomProps)
         </Form>
 
         <DialogFooter>
-          {/* submit button linked to the form by form="join-room-form" */}
           <Button
             disabled={isLoading && socket?.readyState === WebSocket.OPEN}
             type="submit"

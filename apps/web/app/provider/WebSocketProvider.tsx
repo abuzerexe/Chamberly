@@ -7,7 +7,8 @@ export default function WebSocketProvider({ children }: { children: React.ReactN
   const setSocket = useRoomStore((s) => s.setSocket);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8080");
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    const ws = new WebSocket(wsUrl);
     setSocket(ws);
 
     return () => {

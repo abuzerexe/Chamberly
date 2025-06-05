@@ -1,90 +1,67 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/ui/theme-toggle"
-import { useEffect, useRef, useState } from "react"
-import {Card,CardContent,CardDescription,CardHeader,CardTitle} from "@/components/ui/card"
-import  JoinRoom  from "./JoinRoom"
-import  CreateRoom  from "./CreateRoom"
-import ChatLogo from "@/components/ui/ChatLogo"
-import { Separator } from "@/components/ui/separator"
+import {  useState } from "react"
+import  JoinRoom  from "../components/JoinRoom"
+import  CreateRoom  from "../components/CreateRoom"
 import { toast } from "sonner"
-// import { DialogDemo } from "./text"
-
+import { useRouter } from "next/navigation"
+import MainCard from "../components/MainCard"
+import { useRoomStore } from "@/store/roomData"
+  
 
 
 
 export default function Home() {
-  const newSocket = useRef<WebSocket>(null)
-  const [userId, setUserId] = useState<string>("")
-  const [roomCode, setRoomCode] = useState<string>("")
-  const [roomName, setRoomName] = useState<string>("")
-  const [userCount, setUserCount] = useState<number>(0)
-  const [userName,setUserName] = useState<string>("")
 
-  const canSend = newSocket && newSocket.current?.readyState === WebSocket.OPEN;
+  const {
+    socket,
+    updateUserId,
+    updateRoomId,
+    updateRoomName,
+    updateUserCount,
+  } = useRoomStore()
+  const router = useRouter()
 
-  useEffect(()=>{
-    newSocket.current = new WebSocket("ws://localhost:8080")
-    const socket = newSocket.current
-    socket.onopen = () => {
-      console.log("Connection Established")
-      // socket.send("New Connection " + Date.now())
-      
+  const [isLoading, setIsLoading] = useState(false)
+
+
+  if(socket){    
+    
       socket.onmessage = (message) =>{
         const data = JSON.parse(message.data)
-        if(data.type == "room-created"){
+        if(data.type == "room-created" || data.type == "room-joined"){
           const payload = data.payload
-          setUserId(payload.userId)
-          localStorage.setItem("userId",userId)
-          setRoomCode(payload.roomId)
-          console.log(payload.roomId) 
-          setRoomName(payload.roomName)
-          setUserCount(payload.userCount)
+          updateUserId(payload.userId)
+          localStorage.setItem("userId",payload.userId)
+          updateRoomId(payload.roomId)
+          updateRoomName(payload.roomName)
+          updateUserCount(payload.userCount)
+          router.push(`/room/${payload.roomId}`)
           toast.success(payload.message)
-          
+        }
+        else if(data.type == "error-home"){
+          const payload = data.payload
+          toast.error(payload.error)
+          setIsLoading(false)
         }
 
-        else if(data.type == "room-joined"){
-          const payload = data.payload
-          setUserId(payload.userId)
-           localStorage.setItem("userId",userId)
-          setRoomCode(payload.roomId)
-          setRoomName(payload.roomName)
-          setUserCount(payload.userCount)
-          toast.success(payload.message)
-        }
       }
     }
-  },[])
-
-
-
+  
   return <div >
 
     <div className="fixed top-3 right-3">
     <ModeToggle/>
     </div>
 
-      <div className="container mx-auto max-w-2xl p-4 h-screen flex items-center justify-center">
-        <Card className="w-full">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-3xl flex items-center gap-2 font-bold">
-             <ChatLogo/>
-              Chamberly.
-            </CardTitle>
-            <CardDescription className="text-md">
-              temporary room that expires after all users exit
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-around">
 
-            <CreateRoom socket={newSocket} />
-            <JoinRoom socket={newSocket} />
-          </CardContent>
-        </Card> 
-
-      </div>
+    <MainCard >
+    <div className = "flex justify-around">
+      <CreateRoom socket={socket} isLoading={isLoading} setIsLoading={setIsLoading} />
+      <JoinRoom socket={socket} isLoading={isLoading} setIsLoading={setIsLoading}/>
+    </div>
+    </MainCard>
   </div>
   
 }

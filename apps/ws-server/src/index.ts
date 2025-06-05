@@ -80,6 +80,15 @@ wss.on("connection",(ws)=>{
       "message": "Room "General Chat" created successfully".
     }
   }
+
+  Error:
+  {
+      type: "error-home",
+      payload: {
+        error: "Failed to create room. Please try again.",
+        context: "create-room"
+      }
+    }
 */
 
 function createRoom( payload: Room, ws: WebSocket){
@@ -91,9 +100,12 @@ try{
 
     rooms.set(roomId,{roomName, createdBy, participants: new Set([ws]),lastActive:Date.now()})
 
-    const userId = generateUserId()
+    const existingUser = users.get(ws);
+
+    const userId = existingUser?.userId ?? generateUserId();
+    
     users.set(ws,{userId,userName: createdBy})
-     console.log("creating room for user with id: "+ userId + " and name: " + createdBy)
+     console.log("creating room for user with id: "+ userId + " and name: " + createdBy+ " room id: "+roomId)
     const message = {
     type: "room-created",
     payload: {
@@ -110,7 +122,7 @@ try{
 }catch(e){
     console.log("Create Room error: "+e)
     const message = {
-      type: "error",
+      type: "error-home",
       payload: {
         error: "Failed to create room. Please try again.",
         context: "create-room"
@@ -149,14 +161,26 @@ try{
       "message": `Room "General Chat" joined successfully.`
       }
 
+      announcing user through broadcast message
+
+      Error
+      {
+      type: "error-home",
+      payload: {
+        error: "Room not found.", or error: "Failed to join room. Please try again.",
+        context: "join-room"
+      }
+    }
+      
 */
 
 
 function joinRoom( payload, ws: WebSocket){
 
+try{
     const roomId = payload.roomId
     const userName = payload.userName
-    
+
     if(rooms.has(roomId)){
         const existingUser = users.get(ws);
         const userId = existingUser?.userId ?? generateUserId();        
@@ -172,6 +196,7 @@ function joinRoom( payload, ws: WebSocket){
             type: "system",
             payload: {
               roomId,
+              userId,
               message : `${userName} has joined the room.`
             }
           }
@@ -185,7 +210,6 @@ function joinRoom( payload, ws: WebSocket){
             roomName,
             createdBy: room.createdBy,
             userCount: room.participants.size,
-            status: "success",
             message: `Room "${roomName}" joined successfully.`
             }
         }
@@ -194,16 +218,28 @@ function joinRoom( payload, ws: WebSocket){
 
     }else{
     const message = {
-      type: "error",
+      type: "error-home",
       payload: {
-        error: "There is no room with this Room Id.",
+        error: "Room not found.",
         context: "join-room"
       }
     }
     ws.send(JSON.stringify(message))
     return 
     }
+  }catch(e){
+    console.log("Join Room error: "+e)
 
+    const message = {
+      type: "error-home",
+      payload: {
+        error: "Failed to join room. Please try again.",
+        context: "join-room"
+      }
+    }
+    ws.send(JSON.stringify(message))
+    return
+  }
 }
 
 
@@ -224,6 +260,7 @@ function joinRoom( payload, ws: WebSocket){
 
   {"type":"message",
   "payload":{
+  "id" :"23n23w"
   "message":"hi",
   "senderId":"I0uwDAV",
   "senderName":"Random2",
@@ -236,11 +273,13 @@ function joinRoom( payload, ws: WebSocket){
   "payload":{
   "message":"Random1 has joined the room.",
   "senderId":"b9nqMPA",
-  "senderName":"Random1",
+  "userCount" : 2
   "timestamp":"2025-05-23T22:40:55.515Z"}}
 */
 
 function broadcastToRoom(parsedMsg, ws: WebSocket){
+
+try{
     const roomId = parsedMsg.payload.roomId
 
     if(!rooms.has(roomId)){
@@ -265,7 +304,6 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
           message : parsedMsg.payload.message,
           senderId : sender.userId,
           userCount: rooms.get(roomId).participants.size,
-          senderName : sender.userName,
           timestamp: new Date().toISOString()
 
       }
@@ -274,7 +312,8 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
       message = {
         type: "message",
         payload: {
-          message : parsedMsg.payload.message,
+          id : nanoid(6),
+          content : parsedMsg.payload.message,
           senderId : sender.userId,
           senderName : sender.userName,
           timestamp: new Date().toISOString()
@@ -291,7 +330,19 @@ function broadcastToRoom(parsedMsg, ws: WebSocket){
         
     })
 
-    
+  }catch(e){
+        console.log("Broadcast to Room error: "+e)
+      const message = {
+      type: "error",
+      payload: {
+        error: "Error occured",
+        context: "broadcast"
+      }
+    }
+    ws.send(JSON.stringify(message))
+    return 
+
+  }
 }
 /*
   CLIENT
@@ -345,14 +396,15 @@ function leaveRoom(payload, ws: WebSocket) {
   // Cleanup if empty
   if (room.participants.size === 0) {
     rooms.delete(roomId);
+    console.log("deleting room with id "+ roomId+". Remaning rooms: "+ rooms.size)
+    
   }
 
   return {
-    type: "room-left",
+    type: "leave-success",
     payload: {
-      message: `You left the room "${room.roomName}" successfully.`,
+      message: `You left the room "${room.roomName}".`,
       roomId,
-      status: "success"
     }
   };
 }
@@ -369,26 +421,30 @@ function handleDisconnet(ws : WebSocket){
 
   rooms.forEach((room,roomId)=>{
     if(room.participants.has(ws)){
-      room.participants.delete(ws)
-      room.lastActive = Date.now()
-    }
 
-    const disconnectMessage = {
+        const disconnectMessage = {
         type: "system",
         payload: {
           roomId,
           senderId: user.userId,
           senderName: user.userName,
           message: `${user.userName} has disconnected.`,
+          userCount: room.participants.size,
           timestamp: new Date().toISOString()
         }
       };
+      
       room.participants.forEach((user)=>{
         user.send(JSON.stringify(disconnectMessage))
       })
 
+      room.participants.delete(ws)
+      room.lastActive = Date.now()
+    }
+
       if(room.participants.size === 0){
         rooms.delete(roomId)
+        console.log("deleting room with id: "+roomId +". Remaning rooms: "+ rooms.size)
       }
   })
 
@@ -399,8 +455,9 @@ setInterval(() => {
   const now = Date.now();
   rooms.forEach((room, roomCode) => {
     if (room.participants.size === 0 && now - room.lastActive > 3600000) {
-      console.log(`Cleaning up inactive room: ${roomCode}`);
       rooms.delete(roomCode);
+      console.log(`Cleaning up inactive room: ${roomCode}. Remaning rooms:  ${rooms.size}`);
+      
     }
   });
 }, 3600000);

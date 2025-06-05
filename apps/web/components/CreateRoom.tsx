@@ -36,14 +36,15 @@ const FormSchema = z.object({
 
 
 type CreateRoomProps = {
-  socket :  React.RefObject<WebSocket | null>,
-  // isLoading : boolean,
-  // setIsLoading: Dispatch<SetStateAction<boolean>>
+  socket :  WebSocket | null,
+  isLoading: boolean,
+  setIsLoading: Dispatch<SetStateAction<boolean>>
+
 }
 
-export default function CreateRoom({socket}: CreateRoomProps) {
+export default function CreateRoom({socket,isLoading,setIsLoading}: CreateRoomProps) {
 
-  const [isLoading, setIsLoading] = useState(false)
+
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -61,11 +62,10 @@ export default function CreateRoom({socket}: CreateRoomProps) {
         createdBy : data.name
       }
     }
-    if (socket.current) {
-      socket.current.send(JSON.stringify(createRoomMessage))
+    if (socket) {
+      socket.send(JSON.stringify(createRoomMessage))
       setIsLoading(true)
-      //route to room page
-      // setisloading false
+
     } else {
       toast.error("Connection not established. Kindly Refresh the page.")
     }
@@ -125,9 +125,8 @@ export default function CreateRoom({socket}: CreateRoomProps) {
         </Form>
 
         <DialogFooter>
-          {/* submit button linked to the form by form="join-room-form" */}
           <Button
-          disabled={isLoading && socket.current?.readyState === WebSocket.OPEN}
+          disabled={isLoading && socket?.readyState === WebSocket.OPEN}
             type="submit"
             form="create-room-form"
             className="px-8 text-lg font-bold cursor-pointer"

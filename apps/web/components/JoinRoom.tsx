@@ -35,15 +35,14 @@ const FormSchema = z.object({
 })
 
 type joinRoomProps = {
-  socket :  React.RefObject<WebSocket | null>,
-  // isLoading : boolean,
-  // setIsLoading: Dispatch<SetStateAction<boolean>>
+  socket :  WebSocket | null,
+  isLoading : boolean,
+  setIsLoading: Dispatch<SetStateAction<boolean>>
 }
 
 
-export default function JoinRoom({socket}: joinRoomProps) {
+export default function JoinRoom({socket,isLoading,setIsLoading}: joinRoomProps) {
 
-  const [isLoading, setIsLoading] = useState(false)
 
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -62,11 +61,10 @@ export default function JoinRoom({socket}: joinRoomProps) {
         userName : data.name
       }
     }
-    if (socket.current) {
-      socket.current.send(JSON.stringify(joinRoomMessage))
+    if (socket) {
+      socket.send(JSON.stringify(joinRoomMessage))
       setIsLoading(true)
-      //route to room page
-      // setisloading false
+
     } else {
       toast.error("Connection not established. Kindly Refresh the page.")
     }
@@ -126,7 +124,7 @@ export default function JoinRoom({socket}: joinRoomProps) {
         <DialogFooter>
           {/* submit button linked to the form by form="join-room-form" */}
           <Button
-            disabled={isLoading && socket.current?.readyState === WebSocket.OPEN}
+            disabled={isLoading && socket?.readyState === WebSocket.OPEN}
             type="submit"
             form="join-room-form"
             className="px-8 text-lg font-bold cursor-pointer"

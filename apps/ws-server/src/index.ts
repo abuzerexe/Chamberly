@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { nanoid } from 'nanoid';
 
-
-const wss = new WebSocketServer({port: 8080},()=>{
+const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
+const wss = new WebSocketServer({port},()=>{
   console.log("Server listening on port 8080")
 });
 

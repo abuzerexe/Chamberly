@@ -63,11 +63,18 @@ export default function CreateRoom({socket,isLoading,setIsLoading}: CreateRoomPr
       }
     }
     if (socket) {
-      socket.send(JSON.stringify(createRoomMessage))
-      setIsLoading(true)
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(createRoomMessage));
+        setIsLoading(true);
+      } else {
+        toast.error("Connection not established. Kindly refresh the page.");
+        setIsLoading(false); 
+      }
 
     } else {
       toast.error("Connection not established. Kindly Refresh the page.")
+      setIsLoading(false); 
+
     }
     
   }
@@ -98,12 +105,14 @@ export default function CreateRoom({socket,isLoading,setIsLoading}: CreateRoomPr
               control={form.control}
               name="name"
               render={({ field }) => (
-                <FormItem className="grid grid-cols-4 items-center gap-4">
-                  <FormLabel className="text-right text-lg">Name</FormLabel>
-                  <FormControl className="col-span-3">
+                <FormItem className="flex flex-col md:grid md:grid-cols-4 items-center gap-2 md:gap-4">
+                  <FormLabel className="text-left md:text-right text-lg md:col-span-1">
+                    Name
+                  </FormLabel>
+                  <FormControl className="md:col-span-3 w-full">
                     <Input placeholder="Enter your name" {...field} />
                   </FormControl>
-                  <FormMessage className="col-span-4 ml-24" />
+                  <FormMessage className="md:col-span-4 ml-0 md:ml-24" />
                 </FormItem>
               )}
             />
@@ -112,13 +121,15 @@ export default function CreateRoom({socket,isLoading,setIsLoading}: CreateRoomPr
               control={form.control}
               name="roomName"
               render={({ field }) => (
-                <FormItem className="grid grid-cols-4 items-center gap-4">
-                  <FormLabel className="text-right text-md">Room Name</FormLabel>
-                  <FormControl className="col-span-3">
-                    <Input placeholder="Enter Room Name" {...field} />
-                  </FormControl>
-                  <FormMessage className="col-span-4 ml-24" />
-                </FormItem>
+                <FormItem className="flex flex-col md:grid md:grid-cols-4 items-center gap-2 md:gap-4">
+                <FormLabel className="text-left md:text-right text-md md:col-span-1">
+                  Room Name
+                </FormLabel>
+                <FormControl className="md:col-span-3 w-full">
+                  <Input placeholder="Enter Room Name" {...field} />
+                </FormControl>
+                <FormMessage className="md:col-span-4 ml-0 md:ml-24" />
+              </FormItem>
               )}
             />
           </form>

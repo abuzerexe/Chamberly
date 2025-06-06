@@ -85,15 +85,14 @@ export default function ChatRoom(){
             roomId
             }
       }
-        if (socket) {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify(leaveMsg));
-                } else {
-                    toast.error("Error Occured.");
-                }           
-         } else {
-              toast.error("Error Occured.")
-            }
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(leaveMsg));
+        toast.success("You have left the room.");
+        router.replace("/");
+    } else {
+        toast.error("Error Occurred.");
+        router.replace("/");
+  }
     }
 
     return <div>
